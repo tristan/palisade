@@ -1,4 +1,4 @@
-from flask import Blueprint, request, url_for, abort as flask_abort
+from flask import Blueprint, request, url_for, abort as flask_abort, session, redirect
 from werkzeug.exceptions import HTTPException
 from functools import wraps
 import simplejson
@@ -30,16 +30,36 @@ def jsonresult(fn):
             return simplejson.dumps(e.data), e.code
     return view
 
+@blueprint.route('/')
+def api():
+    return callback()
+
 @blueprint.route('/__callback__/')
-def default_callback():
+def callback():
+    """proxy callback, used so providers always redirect back to /api/__callback__/ 
+    (this is so we can work with providers that require a specific redirect url to be matched)
+
+    TODO: I'm still playing with this. I'm not sure I like the idea if a goal of this service
+    is to be run behind the scenes (i.e. behind a server), but it's fine if it's meant as a
+    login system for desktop/mobile applications as well.
+    """
+    redirect_uri = request.args.get('callback', None)
+    # we need to include the query in this redirect
+    args = '&'.join('{0}={1}'.format(k, request.args[k]) for k in request.args if k != 'callback')
+    if args:
+        redirect_uri += '{0}{1}'.format(
+            '?' if '?' not in redirect_uri else '&',
+            args)
+        
+    if redirect_uri:
+        return redirect(redirect_uri)
     return ""
 
 @blueprint.route('/login/<string:provider>/init/')
 @jsonresult
 def init_login(provider):
-    oauth_callback = request.args.get('oauth_callback')
-    if oauth_callback is None:
-        oauth_callback = url_for('.default_callback', _external=True)
+    callback = request.args.get('oauth_callback')
+    oauth_callback = url_for('.callback', callback=callback, _external=True)
 
     prov = PROVIDERS.get(provider)
     if prov is None:

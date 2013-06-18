@@ -1,5 +1,6 @@
 from functools import wraps
-from flask import session, request, redirect, url_for
+from flask import session, request, redirect, url_for, g
+from palisade.rest import abort
 import urllib3
 import simplejson
 
@@ -17,7 +18,7 @@ def require_login(redirect_endpoint):
     return d0
 
 # TODO: make this a config option
-BASE_URL = 'http://localhost:5001/api'
+BASE_URL = 'http://127.0.0.1:5001/api'
 def init_login(provider, callback_endpoint):
     next = request.args.get('next') or request.referrer
     callback = url_for(callback_endpoint, provider=provider, next=next, _external=True)
@@ -25,6 +26,8 @@ def init_login(provider, callback_endpoint):
         'GET', 
         '{0}/login/{1}/init/?oauth_callback={2}'.format(BASE_URL, provider, callback))
     json = simplejson.loads(r.data)
+    if 'redirect' not in json:
+        abort(400, error=json.get('error', "didn't get redirect url from server"))
     cookies = r.getheader('set-cookie')
     session[AUTH_SESSION_KEY + '0'] = cookies
     return redirect(json['redirect'])
@@ -39,6 +42,8 @@ def verify_login(provider):
         '{0}/login/{1}/verify/?{2}'.format(BASE_URL, provider, request.query_string),
         headers=headers)
     json = simplejson.loads(r.data)
+    if 'error' in json:
+        abort(400, error=json['error'])
     cookies = r.getheader('set-cookie', cookies)
     session[AUTH_SESSION_KEY] = cookies
     return json

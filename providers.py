@@ -12,10 +12,10 @@ class _x_config(object):
 app = _x_config(palisade.settings)
 
 class OAuthServiceWrapper(object):
-    def __init__(self, name, base_url, request_token_url, access_token_url, 
-                 authorize_url, profile_url, profile_key_mappings = {},
-                 profile_kwargs = {}, authorize_kwargs = {},
-                 **kwargs):
+    def __init__(self, name, base_url, access_token_url, 
+                 authorize_url, profile_url, request_token_url=None,
+                 profile_key_mappings = {}, profile_kwargs = {}, 
+                 authorize_kwargs = {}, **kwargs):
         self.name = name
         self.base_url = base_url
         self.request_token_url = request_token_url
@@ -98,6 +98,40 @@ class OAuth1Service(OAuthServiceWrapper):
         session['oauth_token'] = token
         return self.get_or_create_user(token)
 
+class OAuth2Service(OAuthServiceWrapper):
+    def __init__(self, name, client_id, client_secret, **kwargs):
+        super(OAuth2Service, self).__init__(name, **kwargs)
+        self.client_id = client_id
+        self.client_secret = client_secret
+
+        kwargs.pop('name', None)
+        kwargs.pop('profile_url', None)
+        kwargs.pop('profile_key_mappings', None)
+        kwargs.pop('profile_kwargs', None)
+        kwargs.pop('authorize_kwargs', None)
+
+        self.service = rauth.service.OAuth2Service(
+            self.client_id,
+            self.client_secret,
+            **kwargs)
+
+    def get_redirect(self, redirect_uri=None):
+        # fetch the request_token (token and secret 2-tuple) and convert it to a dict
+        session['oauth2_redirect_uri'] = redirect_uri 
+        #request_token = self.service.get_request_token(data={'oauth_callback': oauth_callback})
+        return self.service.get_authorize_url(redirect_uri=redirect_uri)
+
+    def verify(self, code, **kwargs):
+        key = {
+            'code': code,
+            'redirect_uri': session.pop('oauth2_redirect_uri', None)
+        }
+        token = self.service.get_access_token(
+            method='GET', params=key
+        )
+        session['oauth_token'] = token
+        return self.get_or_create_user(token)
+
 PROVIDERS = {}
 PROVIDERS['twitter'] = {
     'consumer_key': app.config.get('TWITTER_CONSUMER_KEY'),
@@ -114,11 +148,44 @@ PROVIDERS['twitter'] = {
         'avatar': 'profile_image_url'
     }
 }
+PROVIDERS['facebook'] = {
+    'client_id': app.config.get('FACEBOOK_CLIENT_ID'),
+    'client_secret': app.config.get('FACEBOOK_CLIENT_SECRET'),
+    'base_url': 'https://graph.facebook.com/',
+    'access_token_url': 'https://graph.facebook.com/oauth/access_token',
+    'authorize_url': 'https://graph.facebook.com/oauth/authorize',
+    'profile_url': 'me',
+    'profile_kwargs': {'fields':'name,link,location,email,picture'},
+    'profile_key_mappings': {
+        'name' : lambda x: x.get('name', x.get('username')),
+        'facebook': 'link',
+        'location': ['location', 'name'],
+        'email' : 'email',
+        'avatar': ['picture', 'data', 'url']
+    }
+}
+PROVIDERS['github'] = {
+    'client_id': app.config.get('GITHUB_CLIENT_ID'),
+    'client_secret': app.config.get('GITHUB_CLIENT_SECRET'),
+    'base_url': 'https://api.github.com/',
+    'access_token_url': 'https://github.com/login/oauth/access_token',
+    'authorize_url': 'https://github.com/login/oauth/authorize',
+    'profile_url': 'user',
+    'profile_key_mappings': {
+        'name' : lambda x: x.get('name', x.get('login')),
+        'github': lambda x: 'http://github.com/' + x.get('login'),
+        'location': 'location',
+        'email' : 'email',
+        'avatar': 'avatar_url'
+    }
+}
 
 for name in PROVIDERS:
     p = PROVIDERS[name]
     if p.get('consumer_key') is not None and p.get('consumer_secret') is not None:
         p = OAuth1Service(name=name,**p)
+    elif p.get('client_id') is not None and p.get('client_secret') is not None:
+        p = OAuth2Service(name=name,**p)
     else:
         p = None
     PROVIDERS[name] = p
