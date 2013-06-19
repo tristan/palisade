@@ -26,12 +26,7 @@ class OAuthServiceWrapper(object):
         self.profile_kwargs = profile_kwargs
         self.authorize_kwargs = authorize_kwargs
 
-    def get_or_create_user(self, token=None):
-        if token is None:
-            token = session.get('oauth_token')
-            if token is None:
-                raise Exception("Error getting user's oauth token")
-
+    def get_or_create_user(self, token):
         res = self.service.get_session(token).get(self.profile_url, params=self.profile_kwargs)
         if res.status_code != 200:
             raise Exception("Error getting user's credentials")

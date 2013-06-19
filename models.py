@@ -1,6 +1,14 @@
 import os
 
-class User(object):
+if 'SERVER_SOFTWARE' in os.environ:
+    from google.appengine.ext import ndb as db
+else:
+    from fndb import db
+
+class User(db.Expando):
+
+    auth_ids = db.StringProperty(repeated=True)
+
     @staticmethod
     def generate_auth_id(provider, uid, subprovider=None):
         if subprovider is not None:
@@ -8,52 +16,25 @@ class User(object):
         return '{0}:{1}'.format(provider, uid)
 
     @classmethod
-    def get_by_auth_id(cls, auth_id):
-        raise NotImplementedError
+    def get_or_create(cls, auth_id, update_missing_fields=False, ignore_invalid_keys=True, **user_details):
+        user = cls.get_by_auth_id(auth_id)
+        if user is None:
+            user = cls(auth_ids=[auth_id])
+            update_missing_fields = True
+        if update_missing_fields:
+            for key in user_details:
+                if key in ['parent', 'id']:
+                    if ignore_invalid_keys:
+                        user_details.pop(key)
+                    else:
+                        raise Exception("Cannot create User Profile with reserved '%s' property" % key)
+                else:
+                    if getattr(user, key, None) is not None:
+                        user_details.pop(key)
+            user.populate(**user_details)
+            user.put()
+        return user
         
     @classmethod
-    def get_or_create(cls, auth_id, ignore_invalid_keys=True, **user_details):
-        raise NotImplementedError
-
-    def put(self):
-        raise NotImplementedError
-
-    @property
-    def id(self):
-        raise NotImplementedError
-
-if 'SERVER_SOFTWARE' in os.environ:
-    # TODO: GAE Models for user
-    pass
-else:
-    class Dict_Expando(dict):
-        def __init__(self, **kwargs):
-            self.update(kwargs)
-        def __getattr__(self, name):
-            return self.get(name)
-        def __setattr__(self, name, value):
-            self[name] = value
-
-    users = dict()
-    class Dict_User(User, Dict_Expando):
-        @classmethod
-        def get_by_auth_id(cls, auth_id):
-            return users.get(auth_id)
-
-        @classmethod
-        def get_or_create(cls, auth_id, ignore_invalid_keys=True, **user_details):
-            user = cls.get_by_auth_id(auth_id)
-            if user is None:
-                user = cls(auth_ids=[auth_id], **user_details)
-            user.put()
-            return user
-
-        def put(self):
-            for aid in self.auth_ids:
-                users[aid] = self
-
-        @property
-        def id(self):
-            return self.get('auth_ids', [None])[0]
-
-    User = Dict_User
+    def get_by_auth_id(cls, auth_id):
+        return cls.query(cls.auth_ids == auth_id).get()
