@@ -1,9 +1,5 @@
 import os
-
-if 'SERVER_SOFTWARE' in os.environ:
-    from google.appengine.ext import ndb as db
-else:
-    from fndb import db
+from fndb import db
 
 class User(db.Expando):
 

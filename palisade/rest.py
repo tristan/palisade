@@ -5,8 +5,8 @@ from werkzeug.exceptions import HTTPException
 from functools import wraps
 import simplejson
 
-from . import api
-from .providers import PROVIDERS
+import api
+from providers import PROVIDERS
 
 blueprint = Blueprint('rest.auth', __name__)
 

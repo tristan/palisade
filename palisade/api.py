@@ -1,6 +1,6 @@
 from flask import abort as flask_abort
 from werkzeug.exceptions import HTTPException
-from .providers import PROVIDERS
+from providers import PROVIDERS
 
 def abort(code, **kwargs):
     """
