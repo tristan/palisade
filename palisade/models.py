@@ -34,3 +34,7 @@ class User(db.Expando):
     @classmethod
     def get_by_auth_id(cls, auth_id):
         return cls.query(cls.auth_ids == auth_id).get()
+
+    @property
+    def id(self):
+        return self.key.id()
