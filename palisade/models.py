@@ -1,8 +1,8 @@
 import os
 from fndb import db
+import providers
 
 class User(db.Expando):
-
     auth_ids = db.StringProperty(repeated=True)
 
     @staticmethod
@@ -35,6 +35,23 @@ class User(db.Expando):
     def get_by_auth_id(cls, auth_id):
         return cls.query(cls.auth_ids == auth_id).get()
 
+    @classmethod
+    def get_by_provider_username(cls, provider, username):
+        prov = providers.PROVIDERS.get(provider)
+        if not prov:
+            return None
+        url = prov.get_user_profile_url(username)
+        return cls.query(db.GenericProperty(provider) == url).get()
+
     @property
     def id(self):
         return self.key.id()
+
+def register_profile(cls):
+    for prop in cls._properties:
+        User._properties[prop] = cls._properties[prop]
+
+    uargs = dir(User)
+    for arg in dir(cls):
+        if arg not in uargs:
+            setattr(User, arg, cls.__dict__[arg])

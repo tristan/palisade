@@ -2,6 +2,7 @@ import rauth.service # import OAuth2Service, OAuth1Service,
 from rauth.service import parse_utf8_qsl
 from flask import session
 from models import User
+import sys
 
 # TODO: better way to do this ...
 import palisade.settings# as settings
@@ -13,7 +14,7 @@ app = _x_config(palisade.settings)
 
 class OAuthServiceWrapper(object):
     def __init__(self, name, base_url, access_token_url, 
-                 authorize_url, profile_url, request_token_url=None,
+                 authorize_url, profile_url, user_url_template, request_token_url=None,
                  profile_key_mappings = {}, profile_kwargs = {}, 
                  authorize_kwargs = {}, **kwargs):
         self.name = name
@@ -21,10 +22,20 @@ class OAuthServiceWrapper(object):
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
         self.authorize_url = authorize_url
+        self.user_url_template = user_url_template
         self.profile_url = profile_url
         self.profile_key_mappings = profile_key_mappings
         self.profile_kwargs = profile_kwargs
         self.authorize_kwargs = authorize_kwargs
+
+        if 'gevent' in sys.modules and sys.modules['gevent'].version_info < (1, 0, 0):
+            # NOTE: there seems to be some issues with the gevent dns stack which breaks requests session
+            # calls. forcing a dns resolve on the host seems to fix the issues
+            import gevent, requests
+            gevent.dns.resolve_ipv4(requests.utils.urlparse(self.base_url).hostname)
+    
+    def get_user_profile_url(self, username):
+        return self.user_url_template % username
 
     def get_or_create_user(self, token):
         res = self.service.get_session(token).get(self.profile_url, params=self.profile_kwargs)
@@ -67,6 +78,7 @@ class OAuth1Service(OAuthServiceWrapper):
         self.consumer_secret = consumer_secret
 
         kwargs.pop('name', None)
+        kwargs.pop('user_url_template', None)
         kwargs.pop('profile_url', None)
         kwargs.pop('profile_key_mappings', None)
         kwargs.pop('profile_kwargs', None)
@@ -100,6 +112,7 @@ class OAuth2Service(OAuthServiceWrapper):
         self.client_secret = client_secret
 
         kwargs.pop('name', None)
+        kwargs.pop('user_url_template', None)
         kwargs.pop('profile_url', None)
         kwargs.pop('profile_key_mappings', None)
         kwargs.pop('profile_kwargs', None)
@@ -135,6 +148,7 @@ PROVIDERS['twitter'] = {
     'request_token_url': 'https://api.twitter.com/oauth/request_token',
     'access_token_url': 'https://api.twitter.com/oauth/access_token',
     'authorize_url': 'https://api.twitter.com/oauth/authenticate',
+    'user_url_template': 'http://twitter.com/%s',
     'profile_url': 'account/verify_credentials.json',
     'profile_key_mappings': {
         'name' : lambda x: x.get('name', x.get('screen_name')),
@@ -149,6 +163,7 @@ PROVIDERS['facebook'] = {
     'base_url': 'https://graph.facebook.com/',
     'access_token_url': 'https://graph.facebook.com/oauth/access_token',
     'authorize_url': 'https://graph.facebook.com/oauth/authorize',
+    'user_url_template': 'http://www.facebook.com/%s',
     'profile_url': 'me',
     'profile_kwargs': {'fields':'name,link,location,email,picture'},
     'profile_key_mappings': {
@@ -165,6 +180,7 @@ PROVIDERS['github'] = {
     'base_url': 'https://api.github.com/',
     'access_token_url': 'https://github.com/login/oauth/access_token',
     'authorize_url': 'https://github.com/login/oauth/authorize',
+    'user_url_template': 'http://github.com/%s',
     'profile_url': 'user',
     'profile_key_mappings': {
         'name' : lambda x: x.get('name', x.get('login')),

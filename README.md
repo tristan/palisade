@@ -84,6 +84,17 @@ def index():
     return render_template('index.html')
 ```
 
+##### User model extension
+
+The User model is an [Expando](https://developers.google.com/appengine/docs/python/ndb/entities#expando) model meaning you can add any properties you want to it, however trying to access properties that haven't been set will throw an `AttributeError` rather than returning `None` like normal properties will. You can add specific properties that you can access all the time by creating your own class extending `ndb.Model` and calling `palisade.models.register_profile`. e.g:
+
+	from fndb import db # or just use the GAE ndb imports
+	import palisade
+	class Profile(db.Model):
+		email = db.StringProperty()
+		location = db.StringProperty()
+	palisade.models.register_profile(Profile)
+
 ##### REST blueprint
 
 ```
@@ -91,7 +102,7 @@ from flask import Flask
 app = Flask(__name__)
 import palisade.rest
 app.register_blueprint(palisade.rest.blueprint, url_prefix='/api')
-aoo.run(host='127.0.0.1',port=8080,debug=True)
+app.run(host='127.0.0.1',port=8080,debug=True)
 
 ### run w/ Google App Engine
 
