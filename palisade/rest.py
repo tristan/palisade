@@ -17,6 +17,8 @@ def jsonresult(fn):
         try:
             return simplejson.dumps(fn(*args, **kwargs))
         except HTTPException as e:
+            if not hasattr(e, 'data'):
+                return simplejson.dumps({"error": e.get_description()}), e.code
             return simplejson.dumps(e.data), e.code
     return view
 
