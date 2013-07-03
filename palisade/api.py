@@ -35,7 +35,7 @@ def verify_login(provider, oauth_verifier=None, code=None, error=None, **unused_
         abort(400, error='login to requires `oauth_verifier` or `code` argument')
     
     try:
-        user = prov.verify(**args)
-        return user
+        profile = prov.verify(**args)
+        return profile
     except KeyError:
         abort(400, error='invalid session passed')

@@ -1,7 +1,6 @@
 import rauth.service # import OAuth2Service, OAuth1Service, 
 from rauth.service import parse_utf8_qsl
 from flask import session
-from models import User
 import sys
 
 # TODO: better way to do this ...
@@ -11,6 +10,11 @@ class _x_config(object):
         self.config = settings.__dict__
 
 app = _x_config(palisade.settings)
+
+def generate_auth_id(provider, uid, subprovider=None):
+    if subprovider is not None:
+        provider = '{0}#{1}'.format(provider, subprovider)
+    return '{0}:{1}'.format(provider, uid)
 
 class OAuthServiceWrapper(object):
     def __init__(self, name, base_url, access_token_url, 
@@ -37,7 +41,7 @@ class OAuthServiceWrapper(object):
     def get_user_profile_url(self, username):
         return self.user_url_template % username
 
-    def get_or_create_user(self, token):
+    def get_user_profile(self, token):
         res = self.service.get_session(token).get(self.profile_url, params=self.profile_kwargs)
         if res.status_code != 200:
             raise Exception("Error getting user's credentials")
@@ -64,11 +68,10 @@ class OAuthServiceWrapper(object):
             profile['email'] = None
 
         # TODO: is user_info.id always present for every provider? if not what should we do here?
-        profile['auth_id'] = User.generate_auth_id(self.name, 
-                                                   profile.pop('id', user_info['id']))
+        profile['auth_id'] = generate_auth_id(self.name, 
+                                              profile.pop('id', user_info['id']))
 
-        user = User.get_or_create(**profile)
-        return user
+        return profile
 
 
 class OAuth1Service(OAuthServiceWrapper):
@@ -103,7 +106,7 @@ class OAuth1Service(OAuthServiceWrapper):
             method="GET",
             data={"oauth_verifier": oauth_verifier})
         session['oauth_token'] = token
-        return self.get_or_create_user(token)
+        return self.get_user_profile(token)
 
 class OAuth2Service(OAuthServiceWrapper):
     def __init__(self, name, client_id, client_secret, **kwargs):
@@ -138,7 +141,7 @@ class OAuth2Service(OAuthServiceWrapper):
             method='GET', params=key
         )
         session['oauth_token'] = token
-        return self.get_or_create_user(token)
+        return self.get_user_profile(token)
 
 PROVIDERS = {}
 PROVIDERS['twitter'] = {

@@ -9,8 +9,5 @@ setup(
     packages=['palisade'],
     url='http://github.com/tristan/palisade',
     description='Flask bluprints providing OAuth login capabilities for various OAuth providers.',
-    long_description=open('README.md').read(),
-    install_requires=[
-        'FakeNDB'
-    ]
+    long_description=open('README.md').read()
 )

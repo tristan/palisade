@@ -33,9 +33,9 @@ def init_login(verify_endpoint, redirect=False, *args):
 def verify_login(fn):
     @wraps(fn)
     def d1(provider):
-        user = api.verify_login(provider, **request.args)
-        # user should be an instance of .models.User
-        return fn(user)
+        profile = api.verify_login(provider, **request.args)
+        # profile should be a dict containing user profile details returned from the provider
+        return fn(profile)
     return d1
 
 

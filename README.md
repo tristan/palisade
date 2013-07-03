@@ -8,16 +8,14 @@ A flask Blueprint to provide authentication via oauth and manage user profiles.
 pip install flask flask-kvsession flask-failsafe simplejson
 ```
 
-* install https://github.com/tristan/fndb
-
 ### configuration
 
 ###### Add OAuth variables to your flask app's configuration for any OAuth providers you want to support (see support for the specific provider for how to get these keys).
 
 twitter:
 ```
-TWITTER_COSUMER_KEY = '<Twitter Consumer key>'
-TWITTER_COSUMER_SECRET = '<Twitter Consumer secret>'
+TWITTER_CONSUMER_KEY = '<Twitter Consumer key>'
+TWITTER_CONSUMER_SECRET = '<Twitter Consumer secret>'
 ```
 
 facebook:
@@ -31,10 +29,6 @@ github:
 GITHUB_CLIENT_ID = '<Github Client ID>'
 GITHUB_CLIENT_SECRET = '<Github Client Secret>'
 ```
-
-###### Setup fndb backend (not needed if deploying to GAE)
-
-TODO: I'm still not happy with my fndb backend config setup
 
 ### usage
 
@@ -63,9 +57,11 @@ blueprint.add_url_rule(
 # authorises your app
 @blueprint.route('/login/<string:provider>/verify/')
 @palisade.verify_login
-def verify_login(user):
+def verify_login(user_profile):
+	# create a user based off the returned profile
+	user = YourUserModel.get_or_create(**user_profile)
     # gets the user's id and stores in the session (see below for why)
-    session['user_id'] = user.key.id()
+    session['user_id'] = user.id
     return redirect(url_for('your_app.index'))
 
 # to handle cases where a user denies your app access
@@ -84,17 +80,6 @@ def index():
     return render_template('index.html')
 ```
 
-##### User model extension
-
-The User model is an [Expando](https://developers.google.com/appengine/docs/python/ndb/entities#expando) model meaning you can add any properties you want to it, however trying to access properties that haven't been set will throw an `AttributeError` rather than returning `None` like normal properties will. You can add specific properties that you can access all the time by creating your own class extending `ndb.Model` and calling `palisade.models.register_profile`. e.g:
-
-	from fndb import db # or just use the GAE ndb imports
-	import palisade
-	class Profile(db.Model):
-		email = db.StringProperty()
-		location = db.StringProperty()
-	palisade.models.register_profile(Profile)
-
 ##### REST blueprint
 
 ```
@@ -103,10 +88,6 @@ app = Flask(__name__)
 import palisade.rest
 app.register_blueprint(palisade.rest.blueprint, url_prefix='/api')
 app.run(host='127.0.0.1',port=8080,debug=True)
-
-### run w/ Google App Engine
-
-* TODO
 
 ### example REST usage w/ curl
 
@@ -126,11 +107,7 @@ curl -v -b cookies.txt -c cookies.txt http://127.0.0.1:8080/api/login/twitter/ve
 
 ### TODO
 
-* fndb setup
-* `setup.py` to support `pip install git+https://github.com/tristan/palisade.git#egg=palisade`
 * add in additional providers
-* set/get user profile
- - I may handle this with my fndb REST query idea
 
 ### brain dump of what I am trying to achieve with Palisade
 
