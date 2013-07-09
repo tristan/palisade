@@ -155,7 +155,7 @@ PROVIDERS['twitter'] = {
     'profile_url': 'account/verify_credentials.json',
     'profile_key_mappings': {
         'name' : lambda x: x.get('name', x.get('screen_name')),
-        'twitter': lambda x: 'http://twitter.com/' + x.get('screen_name'),
+        'profile_url': lambda x: 'http://twitter.com/' + x.get('screen_name'),
         'location': 'location',
         'avatar': 'profile_image_url'
     }
@@ -171,7 +171,7 @@ PROVIDERS['facebook'] = {
     'profile_kwargs': {'fields':'name,link,location,email,picture'},
     'profile_key_mappings': {
         'name' : lambda x: x.get('name', x.get('username')),
-        'facebook': 'link',
+        'profile_url': 'link',
         'location': ['location', 'name'],
         'email' : 'email',
         'avatar': ['picture', 'data', 'url']
@@ -187,7 +187,7 @@ PROVIDERS['github'] = {
     'profile_url': 'user',
     'profile_key_mappings': {
         'name' : lambda x: x.get('name', x.get('login')),
-        'github': lambda x: 'http://github.com/' + x.get('login'),
+        'profile_url': lambda x: 'http://github.com/' + x.get('login'),
         'location': 'location',
         'email' : 'email',
         'avatar': 'avatar_url'
