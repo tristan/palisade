@@ -1,6 +1,7 @@
 import rauth.service # import OAuth2Service, OAuth1Service, 
 from rauth.service import parse_utf8_qsl
 from flask import session
+import re
 import sys
 
 # TODO: better way to do this ...
@@ -171,7 +172,8 @@ PROVIDERS['facebook'] = {
     'profile_kwargs': {'fields':'name,link,location,email,picture'},
     'profile_key_mappings': {
         'name' : lambda x: x.get('name', x.get('username')),
-        'profile_url': 'link',
+        # normalise facebook link so it always starts with http:// 
+        'profile_url': lambda x: (lambda m: 'http{0}'.format(m.group(1)) if m else '')(re.match('^https?(.*)', x.get('link', ''))),
         'location': ['location', 'name'],
         'email' : 'email',
         'avatar': ['picture', 'data', 'url']
