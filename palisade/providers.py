@@ -1,6 +1,6 @@
 import rauth.service # import OAuth2Service, OAuth1Service,
 from rauth.service import parse_utf8_qsl
-from flask import session
+from flask import session, current_app
 import re
 import sys
 
@@ -20,8 +20,9 @@ def generate_auth_id(provider, uid, subprovider=None):
 class OAuthServiceWrapper(object):
     def __init__(self, name, base_url, access_token_url,
                  authorize_url, profile_url, user_url_template, request_token_url=None,
-                 profile_key_mappings = {}, profile_kwargs = {}, 
-                 authorize_kwargs = {}, **kwargs):
+                 profile_key_mappings = {}, profile_kwargs = {},
+                 authorize_kwargs = {}, access_token_kwargs = {},
+                 decoder = parse_utf8_qsl, **kwargs):
         self.name = name
         self.base_url = base_url
         self.request_token_url = request_token_url
@@ -32,20 +33,22 @@ class OAuthServiceWrapper(object):
         self.profile_key_mappings = profile_key_mappings
         self.profile_kwargs = profile_kwargs
         self.authorize_kwargs = authorize_kwargs
+        self.access_token_kwargs = access_token_kwargs
+        self.decoder = decoder
 
         if 'gevent' in sys.modules and sys.modules['gevent'].version_info < (1, 0, 0):
             # NOTE: there seems to be some issues with the gevent dns stack which breaks requests session
             # calls. forcing a dns resolve on the host seems to fix the issues
             import gevent, requests
             gevent.dns.resolve_ipv4(requests.utils.urlparse(self.base_url).hostname)
-    
+
     def get_user_profile_url(self, username):
         return self.user_url_template % username
 
     def get_user_profile(self, token):
-        res = self.service.get_session(token).get(self.profile_url, params=self.profile_kwargs)
+        res = self.service.get_session(token).get(self.profile_url, **self.profile_kwargs)
         if res.status_code != 200:
-            raise Exception("Error getting user's credentials")
+            raise Exception("Error getting user's credentials: %d:%s"%(res.status_code, res.content))
         user_info = res.json()
 
         profile = {}
@@ -60,17 +63,18 @@ class OAuthServiceWrapper(object):
             elif hasattr(v, '__call__'):
                 profile[k] = v(user_info)
             else:
-                #TODO: should probably throw some kind of error here
-                pass
+                raise Exception('Unknown profile mapping item for key "%s", expected string, list or function: %s'%(k,v))
 
         # make sure email field is always in the profile
         # TODO: should probably just make it an actual property of the model
         if 'email' not in profile:
             profile['email'] = None
 
+        i = profile.get('id', None)
         # TODO: is user_info.id always present for every provider? if not what should we do here?
-        profile['auth_id'] = generate_auth_id(self.name, 
-                                              profile.pop('id', user_info['id']))
+        if not i: i=user_info['id']
+
+        profile['auth_id'] = generate_auth_id(self.name, i)
 
         return profile
 
@@ -121,6 +125,8 @@ class OAuth2Service(OAuthServiceWrapper):
         kwargs.pop('profile_key_mappings', None)
         kwargs.pop('profile_kwargs', None)
         kwargs.pop('authorize_kwargs', None)
+        kwargs.pop('access_token_kwargs', None)
+        kwargs.pop('decoder', None)
 
         self.service = rauth.service.OAuth2Service(
             self.client_id,
@@ -131,16 +137,18 @@ class OAuth2Service(OAuthServiceWrapper):
         # fetch the request_token (token and secret 2-tuple) and convert it to a dict
         session['oauth2_redirect_uri'] = redirect_uri
         #request_token = self.service.get_request_token(data={'oauth_callback': oauth_callback})
-        return self.service.get_authorize_url(redirect_uri=redirect_uri)
+        return self.service.get_authorize_url(redirect_uri=redirect_uri, **self.authorize_kwargs)
 
     def verify(self, code, **kwargs):
         key = {
             'code': code,
             'redirect_uri': session.pop('oauth2_redirect_uri', None)
         }
+        key.update(self.access_token_kwargs)
         token = self.service.get_access_token(
-            method='GET', params=key
+            method='GET', decoder=self.decoder, params=key
         )
+        current_app.logger.info('Got token %s'%token)
         session['oauth_token'] = token
         return self.get_user_profile(token)
 

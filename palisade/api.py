@@ -1,4 +1,4 @@
-from flask import abort as flask_abort
+from flask import abort as flask_abort, current_app
 from werkzeug.exceptions import HTTPException
 from providers import PROVIDERS
 
@@ -7,6 +7,7 @@ def abort(code, **kwargs):
     Wraps the flask abort function to support adding kwargs to the error
     """
     try:
+        current_app.logger.warn("%s: %s"%(code, kwargs))
         flask_abort(code)
     except HTTPException as e:
         if len(kwargs):
