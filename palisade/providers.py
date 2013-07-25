@@ -1,4 +1,4 @@
-import rauth.service # import OAuth2Service, OAuth1Service, 
+import rauth.service # import OAuth2Service, OAuth1Service,
 from rauth.service import parse_utf8_qsl
 from flask import session
 import re
@@ -18,7 +18,7 @@ def generate_auth_id(provider, uid, subprovider=None):
     return '{0}:{1}'.format(provider, uid)
 
 class OAuthServiceWrapper(object):
-    def __init__(self, name, base_url, access_token_url, 
+    def __init__(self, name, base_url, access_token_url,
                  authorize_url, profile_url, user_url_template, request_token_url=None,
                  profile_key_mappings = {}, profile_kwargs = {}, 
                  authorize_kwargs = {}, **kwargs):
@@ -54,7 +54,7 @@ class OAuthServiceWrapper(object):
                 profile[k] = user_info.get(v)
             elif isinstance(v, list):
                 profile[k] = reduce(
-                    lambda x,k: x is not None and x.get(k, None) or None, 
+                    lambda x,k: x is not None and x.get(k, None) or None,
                     v,
                     user_info)
             elif hasattr(v, '__call__'):
@@ -129,7 +129,7 @@ class OAuth2Service(OAuthServiceWrapper):
 
     def get_redirect(self, redirect_uri=None):
         # fetch the request_token (token and secret 2-tuple) and convert it to a dict
-        session['oauth2_redirect_uri'] = redirect_uri 
+        session['oauth2_redirect_uri'] = redirect_uri
         #request_token = self.service.get_request_token(data={'oauth_callback': oauth_callback})
         return self.service.get_authorize_url(redirect_uri=redirect_uri)
 
@@ -172,7 +172,7 @@ PROVIDERS['facebook'] = {
     'profile_kwargs': {'fields':'name,link,location,email,picture'},
     'profile_key_mappings': {
         'name' : lambda x: x.get('name', x.get('username')),
-        # normalise facebook link so it always starts with http:// 
+        # normalise facebook link so it always starts with http://
         'profile_url': lambda x: (lambda m: 'http{0}'.format(m.group(1)) if m else '')(re.match('^https?(.*)', x.get('link', ''))),
         'location': ['location', 'name'],
         'email' : 'email',
