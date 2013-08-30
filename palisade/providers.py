@@ -184,7 +184,7 @@ PROVIDERS['facebook'] = {
     'authorize_url': 'https://graph.facebook.com/oauth/authorize',
     'user_url_template': 'http://www.facebook.com/%s',
     'profile_url': 'me',
-    'profile_kwargs': {'fields':'name,link,location,email,picture'},
+    'profile_kwargs': {'params':{'fields':'name,link,location,email,picture'}},
     'profile_key_mappings': {
         'name' : lambda x: x.get('name', x.get('username')),
         # normalise facebook link so it always starts with http://
