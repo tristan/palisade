@@ -69,11 +69,17 @@ class OAuthServiceWrapper(object):
             profile['email'] = None
 
         # TODO: is user_info.id always present for every provider? if not what should we do here?
-        profile['auth_id'] = generate_auth_id(self.name, 
-                                              profile.pop('id', user_info['id']))
+        profile['id'] = profile.get('id', user_info['id'])
+        profile['auth_id'] = generate_auth_id(self.name, profile['id'])
 
         return profile
 
+    def get(self, token, url, params={}, **kwargs):
+        return self.service.get_session(token).get(url, params=params, **kwargs)
+    def post(self, token, url, params={}, **kwargs):
+        return self.service.get_session(token).post(url, params=params, **kwargs)
+    def delete(self, token, url, params={}, **kwargs):
+        return self.service.get_session(token).delete(url, params=params, **kwargs)
 
 class OAuth1Service(OAuthServiceWrapper):
     def __init__(self, name, consumer_key, consumer_secret, **kwargs):
@@ -93,9 +99,11 @@ class OAuth1Service(OAuthServiceWrapper):
             self.consumer_secret,
             **kwargs)
 
-    def get_redirect(self, oauth_callback=None):
+    def get_redirect(self, oauth_callback=None, **kwargs):
         # fetch the request_token (token and secret 2-tuple) and convert it to a dict
-        request_token = self.service.get_request_token(data={'oauth_callback': oauth_callback})
+        data = kwargs or {}
+        data['oauth_callback'] = oauth_callback
+        request_token = self.service.get_request_token(data=data)
         session['request_token'] = request_token
         return self.service.get_authorize_url(request_token[0])
 
@@ -127,11 +135,11 @@ class OAuth2Service(OAuthServiceWrapper):
             self.client_secret,
             **kwargs)
 
-    def get_redirect(self, redirect_uri=None):
+    def get_redirect(self, redirect_uri=None, **kwargs):
         # fetch the request_token (token and secret 2-tuple) and convert it to a dict
         session['oauth2_redirect_uri'] = redirect_uri 
         #request_token = self.service.get_request_token(data={'oauth_callback': oauth_callback})
-        return self.service.get_authorize_url(redirect_uri=redirect_uri)
+        return self.service.get_authorize_url(redirect_uri=redirect_uri, **kwargs)
 
     def verify(self, code, **kwargs):
         key = {

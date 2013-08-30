@@ -19,8 +19,8 @@ def _get_provider(provider):
         abort(400, error='unsupported oauth provider `%s`' % provider)
     return prov
 
-def init_login(provider, callback):
-    return _get_provider(provider).get_redirect(callback)
+def init_login(provider, callback, **kwargs):
+    return _get_provider(provider).get_redirect(callback,**kwargs)
 
 def verify_login(provider, oauth_verifier=None, code=None, error=None, **unused_kwargs):
     prov = _get_provider(provider)

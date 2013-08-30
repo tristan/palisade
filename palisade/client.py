@@ -13,14 +13,14 @@ def require_login(logged_in_key, redirect_endpoint, **redirect_kwargs):
         return d1
     return d0
 
-def init_login(verify_endpoint, redirect=False, *args):
+def init_login(verify_endpoint, redirect=False, default_provider=None, *args, **kwargs):
     def d0(fn):
         @wraps(fn)
-        def d1(provider):
+        def d1(provider=default_provider):
             # get any extra arguments on the query path
             _args = dict([(a, request.args[a]) for a in args if a in request.args])
             callback = url_for(verify_endpoint, provider=provider, _external=True, **_args)
-            redirect_url = api.init_login(provider, callback)
+            redirect_url = api.init_login(provider, callback, **kwargs)
             # abort should stop us from getting here if we won't have a 'redirect' key
             return fn(redirect_url)
         return d1
