@@ -88,6 +88,7 @@ app = Flask(__name__)
 import palisade.rest
 app.register_blueprint(palisade.rest.blueprint, url_prefix='/api')
 app.run(host='127.0.0.1',port=8080,debug=True)
+```
 
 ### example REST usage w/ curl
 
